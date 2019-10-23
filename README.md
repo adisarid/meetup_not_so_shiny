@@ -6,6 +6,6 @@ A presentation prepared for a meetup about interactive visualizations for R user
 
 Get in touch:
 
-   * [http://adisarid.github.io](http://adisarid.github.io)
+   * [https://adisarid.github.io](https://adisarid.github.io)
    * Twitter [@SaridResearch](https://twitter.com/SaridResearch)
    * adi@sarid-ins.co.il
