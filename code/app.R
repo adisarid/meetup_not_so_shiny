@@ -28,6 +28,11 @@ ipf_lifts <- read_csv("ipf_lifts_sample.csv") %>%
     filter(weight > 0)
 
 
+# Load modules for interactive date selector ------------------------------
+
+source("modules/dynamic_date_selector.R")
+
+
 # The actual app ----------------------------------------------------------
 
 # The ui to the app
@@ -39,6 +44,9 @@ ui <- dashboardPage(
         ),
         sidebarMenu(
             menuItem("Compare plotting", tabName = "compare_plots", icon = icon("line-chart"))
+        ),
+        sidebarMenu(
+            menuItem("Shiny modules", tabName = "interactive_date_select", icon = icon("calendar"))
         )
     ),
     body = dashboardBody(
@@ -75,7 +83,12 @@ ui <- dashboardPage(
                              box(width = 4, title = "plotly using ggplotly() interface",
                                     plotlyOutput("plotly_location")
                                     ))
-            )
+            ),
+            # The third tab with the date selector module
+            tabItem(tabName = "interactive_date_select",
+                    dynamicDateBoxUI("interactive_date_picker"),
+                    fluidRow(h1(textOutput("see_chosen_range")))
+                    )
         )
     )
 )
@@ -129,6 +142,12 @@ server <- function(input, output, session) {
     output$ggplot_location <- renderPlot({
         ggplotready_reactive()
     })
+    
+    # The server function from the module of the interactive date picker ----
+    # this retains a reactive with the selected date range
+    selected_date_range <- callModule(dynamicDateBoxServer, "interactive_date_picker")
+    
+    output$see_chosen_range <- renderPrint(selected_date_range())
 }
 
 # Run the application 
