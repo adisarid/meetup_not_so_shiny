@@ -1,10 +1,14 @@
 library(shiny)
-library(shinydashboard)
+library(shinydashboard) # for the dashboard form
+library(shinyWidgets) # for nice checkbox
 library(tidyverse)
-library(plotly)
-library(DT)
-library(rhandsontable)
-library(r2d3)
+library(plotly) # for plotting plotly interactive chart
+library(r2d3) # for charting a d3 visualization
+library(rhandsontable) # for a handsontable
+library(DT) # for the DataTable
+library(sm) # for multiple density comparison in base-r plot
+
+# Some data for the table comparison --------------------------------------
 
 our_starwars <- starwars %>% 
     select(name:gender, -skin_color) %>% 
@@ -12,6 +16,19 @@ our_starwars <- starwars %>%
 
 suppressWarnings(general_info_on_tbls <- readLines("handson_vs_DT.html"))
 suppressWarnings(comparing_widgets_text <- readLines("specific_tabular_tests.html"))
+suppressWarnings(comparing_plots <- readLines("visualizations_comparisons.html"))
+
+
+# Some data for the plot comparison ---------------------------------------
+# Data sampled from tidytuesday
+# https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-08/ipf_lifts.csv
+ipf_lifts <- read_csv("ipf_lifts_sample.csv") %>% 
+    select(starts_with("best3"), sex) %>% 
+    pivot_longer(cols = -sex, names_to = "exercise", values_to = "weight") %>% 
+    filter(weight > 0)
+
+
+# The actual app ----------------------------------------------------------
 
 # The ui to the app
 ui <- dashboardPage(
@@ -43,7 +60,22 @@ ui <- dashboardPage(
                     )
             ),
             # The second tab used to compare plots
-            tabItem(tabName = "compare_plots")
+            tabItem(tabName = "compare_plots",
+                    fluidRow(box(width = 12, title = "Comparing plots", collapsible = T,
+                                 HTML(comparing_plots),
+                                 materialSwitch(inputId = "split_by_gender", value = FALSE,
+                                             label = "Example: split by gender?", status = "success"))
+                    ),
+                    fluidRow(box(width = 4, title = "Base-r (package sm)",
+                                    plotOutput("baser_location")
+                                    ),
+                             box(width = 4, title = "ggplot2",
+                                    plotOutput("ggplot_location")
+                                    ),
+                             box(width = 4, title = "plotly using ggplotly() interface",
+                                    plotlyOutput("plotly_location")
+                                    ))
+            )
         )
     )
 )
@@ -63,7 +95,40 @@ server <- function(input, output, session) {
         rhandsontable(our_starwars, height = 700, search = TRUE)
     })
     
+    # Create a reactive expression for the ggplot
     
+    ggplotready_reactive <- reactive({
+        ggplotready <- ggplot(ipf_lifts, aes(x = weight, y = stat(density))) + 
+            geom_density(aes(color = exercise), size = 1, bw = 10) + 
+            theme_bw() + 
+            theme(legend.position = "bottom")
+        
+        if (input$split_by_gender){
+            ggplotready + facet_wrap(~sex)
+        } else {
+            ggplotready
+        }
+    })
+    
+    # Generate a ggplot2 ----
+    output$baser_location <- renderPlot({
+        if (input$split_by_gender){
+            split_by_group <- factor(paste0(ipf_lifts$exercise, ipf_lifts$sex))
+        } else {
+            split_by_group <- factor(ipf_lifts$exercise)
+        }
+        sm.density.compare(x = ipf_lifts$weight, group = split_by_group, xlab="Weight")
+    })
+    
+    # Generate a plotly based on ggplot2 ----
+    output$plotly_location <- renderPlotly({
+        ggplotly(ggplotready_reactive())
+    })
+    
+    # Generate a base R density chart ----
+    output$ggplot_location <- renderPlot({
+        ggplotready_reactive()
+    })
 }
 
 # Run the application 
